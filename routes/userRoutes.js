@@ -9,16 +9,18 @@ const router = express.Router();
 
 // Route to create a user
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  let { username, email, password } = req.body;
 
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: 'All fields (username, email, password) are required.' });
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required.' });
   }
 
-   // Check if user already exists by email or username
+  if (!username) username = email.split('@')[0];
+
+   // Check if user already exists by email
    db.get(
-    `SELECT id, email, username FROM users WHERE email = ? OR username = ?`,
-    [email, username],
+    `SELECT id, email, username FROM users WHERE email = ?`,
+    [email],
     async (err, row) => {
       if (err) {
         return res.status(500).json({ error: 'Existing user verification error.' });
@@ -28,9 +30,6 @@ router.post('/register', async (req, res) => {
       if (row) {
         if (row.email === email) {
           return res.status(400).json({ error: 'A user with this email address already exists.' });
-        }
-        if (row.username === username) {
-          return res.status(400).json({ error: 'A user with this username already exists.' });
         }
       }
 

@@ -1,5 +1,9 @@
 # Shared Expenses APP API
 
+## TODO
+
+- [ ] Add notifications preferences to users  
+
 ## Endpoints
 
 ### Users
