@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import cors from 'cors';
 
 import userRoutes from './routes/userRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
@@ -19,6 +20,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware for parsing JSON requests
 app.use(express.json());
 
+// Middleware for enabling CORS
+app.use(cors());
 
 const ensureDirectoryExists = (dir) => {
   if (!fs.existsSync(dir)) {
@@ -70,6 +73,9 @@ app.use('/groups', groupRoutes);
 app.use('/groups', expenseRoutes);
 app.use('/upload', setupUploadRoutes(upload)); // Pass upload to routes
 
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to the Expense Tracker API' });
+})
 
 // Initialize the SQLite database
 const db = new sqlite3.Database(

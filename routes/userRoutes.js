@@ -44,7 +44,10 @@ router.post('/register', async (req, res) => {
           if (err) {
             return res.status(500).json({ error: 'Account creation error.' });
           }
-          res.status(201).json({ id: this.lastID, username, email, profileImage: null });
+
+          const token = jwt.sign({ userId: this.lastID }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+          res.status(201).json({ id: this.lastID, username, email, profileImage: null, token });
         }
       );
     }

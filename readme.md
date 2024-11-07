@@ -2,7 +2,8 @@
 
 ## TODO
 
-- [ ] Add notifications preferences to users  
+- [ ] Add notifications preferences to users
+- [ ] Endpoint to trigger notifications
 
 ## Endpoints
 

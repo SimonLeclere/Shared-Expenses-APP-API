@@ -1,4 +1,4 @@
-import { app } from './index.js';
+// import { app } from './index.js';
 import jwt from 'jsonwebtoken';
 
 // URL de base pour l'API
@@ -215,6 +215,23 @@ async function getSpecificExpense(token, groupId, expenseId) {
 
 // Fonction principale pour exécuter les actions de création de compte, connexion, création de groupe et affichage
 async function main() {
+    
+
+    const response = await fetch(`${baseUrl}/users/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: `simon-leclere@orange.fr`,
+            password: 'password'
+        })
+    });
+    const data = await response.json();
+    if (response.ok) console.log('Utilisateur créé:', data);
+    else console.error('Erreur lors de la création du compte:', data);
+
+    return;
+    
+    
     await registerUser("user", false);
     const token = await loginUser("user", false);
     if (!token) return console.error('Impossible de continuer sans token JWT.');
