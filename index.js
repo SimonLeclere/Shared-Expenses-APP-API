@@ -67,12 +67,18 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
-// Routes
+// Routes 
 app.use('/users', userRoutes);
 app.use('/groups', groupRoutes);
 app.use('/groups', expenseRoutes);
 app.use('/upload', setupUploadRoutes(upload)); // Pass upload to routes
 
+// Static file serving
+app.use('/uploads/profile', express.static('./uploads/profile'));
+app.use('/uploads/group', express.static('./uploads/group'));
+app.use('/uploads/expense', express.static('./uploads/expense'));
+
+// Default route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the Expense Tracker API' });
 })
