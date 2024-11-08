@@ -99,7 +99,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
 
   // Verifier si on souhaite changer le mot de passe
   if (newPassword && !oldPassword) {
-    return res.status(422).json({ error: 'Please provide your current password to change it.' });
+    return res.status(400).json({ error: 'Please provide your current password to change it.' });
   }
 
   // Vérifier si le mot de passe actuel est correct
@@ -111,7 +111,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
 
       const isPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
       if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Old password is incorrect' });
+        return res.status(422).json({ error: 'Old password is incorrect' });
       }
 
       // Si le mot de passe est valide, on continue avec la mise à jour
