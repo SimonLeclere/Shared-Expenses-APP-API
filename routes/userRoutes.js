@@ -45,7 +45,7 @@ router.post('/register', async (req, res) => {
             return res.status(500).json({ error: 'Account creation error.' });
           }
 
-          const token = jwt.sign({ userId: this.lastID }, process.env.JWT_SECRET, { expiresIn: '1h' });
+          const token = jwt.sign({ userId: this.lastID }, process.env.JWT_SECRET, { expiresIn: '1y' });
 
           res.status(201).json({ id: this.lastID, username, email, profileImage: null, token });
         }
@@ -73,10 +73,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Wrong password' });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1y' });
     res.json({ token, id: user.id, username: user.username, email: user.email, profileImage: user.profileImage });
   });
 });
+
 
 // Route to retrieve logged-in user information
 router.get('/profile', authenticateToken, (req, res) => {
@@ -90,40 +91,85 @@ router.get('/profile', authenticateToken, (req, res) => {
   });
 });
 
+
 // Route to update logged-in user information
 router.put('/profile', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
-  const { username, email, password } = req.body;
+  const { username, email, newPassword, oldPassword } = req.body;
 
-  const updates = [];
-  const params = [];
-
-  // Checks if at least one field to be updated is provided
-  if (!username && !email && !password) {
-    return res.status(400).json({ error: 'No information to update. Provide at least one field.' });
+  // Verifier si on souhaite changer le mot de passe
+  if (newPassword && !oldPassword) {
+    return res.status(422).json({ error: 'Please provide your current password to change it.' });
   }
 
-  if (username) {
-    updates.push('username = ?');
-    params.push(username);
-  }
-  if (email) {
-    updates.push('email = ?');
-    params.push(email);
-  }
-  if (password) {
-    const passwordHash = await bcrypt.hash(password, 10);
-    updates.push('passwordHash = ?');
-    params.push(passwordHash);
-  }
+  // Vérifier si le mot de passe actuel est correct
+  if (newPassword && oldPassword) {
+    db.get(`SELECT passwordHash FROM users WHERE id = ?`, [userId], async (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
-  params.push(userId);
-  db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
-    if (err) {
-      return res.status(400).json({ error: 'Error updating profile' });
+      const isPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Old password is incorrect' });
+      }
+
+      // Si le mot de passe est valide, on continue avec la mise à jour
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      const updates = [];
+      const params = [];
+
+      // On ajoute le nouveau mot de passe au tableau des mises à jour
+      if (newPassword) {
+        updates.push('passwordHash = ?');
+        params.push(passwordHash);
+      }
+
+      if (username) {
+        updates.push('username = ?');
+        params.push(username);
+      }
+
+      if (email) {
+        updates.push('email = ?');
+        params.push(email);
+      }
+
+      params.push(userId);
+      db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
+        if (err) {
+          return res.status(400).json({ error: 'Error updating profile' });
+        }
+        res.json({ message: 'Profile successfully updated' });
+      });
+    });
+  } else {
+    // Si pas de changement de mot de passe, on met à jour les autres champs
+    const updates = [];
+    const params = [];
+
+    if (!username && !email && !newPassword) {
+      return res.status(400).json({ error: 'No information to update. Provide at least one field.' });
     }
-    res.json({ message: 'Profile successfully updated' });
-  });
+
+    if (username) {
+      updates.push('username = ?');
+      params.push(username);
+    }
+    if (email) {
+      updates.push('email = ?');
+      params.push(email);
+    }
+
+    params.push(userId);
+    db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
+      if (err) {
+        return res.status(400).json({ error: 'Error updating profile' });
+      }
+      res.json({ message: 'Profile successfully updated' });
+    });
+  }
 });
+
 
 export default router;
