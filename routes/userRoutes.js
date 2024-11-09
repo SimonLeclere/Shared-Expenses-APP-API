@@ -11,6 +11,9 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   let { username, email, password } = req.body;
 
+  console.log(req.body);
+  
+
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required.' });
   }
@@ -169,6 +172,18 @@ router.put('/profile', authenticateToken, async (req, res) => {
       res.json({ message: 'Profile successfully updated' });
     });
   }
+});
+
+// Route to get user by ID
+router.get('/:id', (req, res) => {
+  const userId = req.params.id;
+
+  db.get(`SELECT id, username, email, profileImage FROM users WHERE id = ?`, [userId], (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  });
 });
 
 

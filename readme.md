@@ -13,6 +13,7 @@
 - **POST** `/login`: Log in and receive a JWT token
 - **GET** `/profile`: Retrieve profile information (authenticated)
 - **PUT** `/profile`: Update profile information (authenticated)
+- **GET** `/:id`: Retrieve profile information of a specific user
 
 ### Groups/Tricounts
 
