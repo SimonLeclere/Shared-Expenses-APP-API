@@ -347,6 +347,10 @@ router.post('/notify', (req, res) => {
 
   const { token } = req.body;
 
+  if (!token) {
+    return res.status(400).json({ error: 'Device token is required' });
+  }
+
   const message = `You owe 23.50€ to Florine and 2 others!`
 
   const payload = {
