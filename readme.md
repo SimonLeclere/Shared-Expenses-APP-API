@@ -62,7 +62,7 @@
   "name": "string",
   "description": "string",
   "ownerId": "unique_user_id",
-  "members": ["unique_user_id1", "unique_user_id2"],
+  "members": [{id, usernamen, profileImage}],
   "image": "string"
 }
 ```
