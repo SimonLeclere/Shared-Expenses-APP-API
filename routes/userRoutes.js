@@ -186,5 +186,25 @@ router.get('/:id', (req, res) => {
   });
 });
 
+// Route to update user device token
+router.post('/device-token', authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  const { deviceToken } = req.body;
+
+  console.log("deviceToken", deviceToken);
+
+  const query = `UPDATE users SET deviceToken = ? WHERE id = ?`;
+
+  db.run(query, [deviceToken, userId], function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour du token' });
+    }
+    res.json({ message: 'Token mis à jour avec succès' });
+  });
+
+});
+
+
+
 
 export default router;

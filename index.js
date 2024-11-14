@@ -104,7 +104,8 @@ db.serialize(() => {
       username TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       passwordHash TEXT NOT NULL,
-      profileImage TEXT
+      profileImage TEXT,
+      deviceToken TEXT
     )
   `);
 
@@ -156,6 +157,7 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS group_members (
       groupId INTEGER NOT NULL,
       userId INTEGER NOT NULL,
+      lastNotificationDate TEXT,
       FOREIGN KEY (groupId) REFERENCES groups(id),
       FOREIGN KEY (userId) REFERENCES users(id),
       PRIMARY KEY (groupId, userId)

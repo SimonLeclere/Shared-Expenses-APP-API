@@ -49,7 +49,7 @@
   "username": "string",
   "email": "string",
   "passwordHash": "string",
-  "profileImage": "string"
+  "profileImage": "string",
 }
 ```
 
@@ -62,7 +62,14 @@
   "name": "string",
   "description": "string",
   "ownerId": "unique_user_id",
-  "members": [{id, usernamen, profileImage}],
+  "members": [
+    {
+      "id": "string",
+      "username": "string",
+      "profileImage": "string",
+      "lastNotificationDate": "string | null"
+    }
+  ],
   "image": "string"
 }
 ```
