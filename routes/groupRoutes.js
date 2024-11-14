@@ -354,7 +354,7 @@ router.post('/notify', (req, res) => {
   const message = `You owe 23.50€ to Florine and 2 others!`
 
   const payload = {
-    notification: {
+    data: {
       title: "Don't forget ⏳",
       body: message
     },
@@ -430,7 +430,7 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
           : `You owe ${totalAmount} to ${creditorName}!`;
 
         const payload = {
-          notification: {
+          data: {
             title: "Don't forget ⏳",
             body: message
           },
