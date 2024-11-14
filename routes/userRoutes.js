@@ -191,12 +191,14 @@ router.post('/device-token', authenticateToken, (req, res) => {
   const userId = req.user.userId;
   const { deviceToken } = req.body;
 
-  console.log("deviceToken", deviceToken);
-
   const query = `UPDATE users SET deviceToken = ? WHERE id = ?`;
 
   db.run(query, [deviceToken, userId], function (err) {
     if (err) {
+      console.log(err);
+      console.log('Error updating token');
+      console.log('deviceToken', deviceToken);
+      console.log('userId', userId);
       return res.status(500).json({ error: 'Erreur lors de la mise à jour du token' });
     }
     res.json({ message: 'Token mis à jour avec succès' });
