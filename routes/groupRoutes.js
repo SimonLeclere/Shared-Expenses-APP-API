@@ -87,7 +87,7 @@ router.post('/', authenticateToken, (req, res) => {
 router.get('/', authenticateToken, (req, res) => {
   const userId = req.user.userId;
 
-  db.all(`SELECT g.*, gm.userId AS memberId, u.username AS memberName FROM groups g
+  db.all(`SELECT g.*, gm.userId AS memberId, u.username AS memberName, u.profileImage as profileImage from groups g
           JOIN group_members gm ON g.id = gm.groupId
           JOIN users u ON gm.userId = u.id
           WHERE gm.userId = ?`, [userId], (err, rows) => {
