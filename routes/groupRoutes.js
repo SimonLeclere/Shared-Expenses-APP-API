@@ -100,6 +100,7 @@ router.get('/', authenticateToken, (req, res) => {
           JOIN users u ON gm.userId = u.id
           WHERE gm.userId = ?`, [userId], (err, rows) => {
     if (err) {
+      console.error(err);
       return res.status(500).json({ error: 'Error retrieving groups' });
     }
 
