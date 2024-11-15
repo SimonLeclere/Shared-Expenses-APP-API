@@ -36,7 +36,7 @@ router.post('/', authenticateToken, (req, res) => {
   if (!description) description = '';
 
   if (!name) {
-    return res.status(400).json({ error: 'The "name" and "description" fields are required.' });
+    return res.status(422).json({ error: 'The "name" and "description" fields are required.' });
   }
 
   // Request for user information
