@@ -263,7 +263,7 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
         [group.id, userId],
         function (err) {
           if (err) {
-            return res.status(400).json({ error: 'Error when trying to join the group' });
+            return res.status(500).json({ error: 'Error when trying to join the group' });
           }
           res.json({ message: 'You have successfully joined the group' });
         }

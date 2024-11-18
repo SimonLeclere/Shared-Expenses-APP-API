@@ -38,23 +38,23 @@ describe('Group Routes', () => {
       groupJoinCode = res.body.joinCode;
     });
 
-    it('should return 400 if name is missing', async () => {
+    it('should return 422 if name is missing', async () => {
       const res = await request(app)
         .post(baseUrl)
         .set('Authorization', `Bearer ${token}`)
         .send({ description: 'A group without a name' });
 
-      expect(res.status).to.equal(400);
+      expect(res.status).to.equal(422);
       expect(res.body).to.have.property('error');
     });
 
-    it('should return 400 if name is invalid', async () => {
+    it('should return 422 if name is invalid', async () => {
       const res = await request(app)
         .post(baseUrl)
         .set('Authorization', `Bearer ${token}`)
         .send({ name: '', description: 'Invalid group' });
 
-      expect(res.status).to.equal(400);
+      expect(res.status).to.equal(422);
       expect(res.body).to.have.property('error');
     });
   });
