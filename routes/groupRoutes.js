@@ -242,7 +242,7 @@ router.delete('/:id', authenticateToken, (req, res) => {
 router.post('/:joinCode/join', authenticateToken, (req, res) => {
   const joinCode = req.params.joinCode;
   const userId = req.user.userId;
-  
+
   // First check if the group exists
   db.get(`SELECT * FROM groups WHERE joinCode = ?`, [joinCode], (err, group) => {
     if (err || !group) {
@@ -252,7 +252,7 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
     isUserInGroup(group.id, userId, (err, member) => {
       if (err) {
         return res.status(500).json({ error: 'Error verifying group membership' });
-      }      
+      }
 
       if (member) {
         return res.status(400).json({ error: 'You are already a member of this group' });
@@ -265,12 +265,44 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
           if (err) {
             return res.status(500).json({ error: 'Error when trying to join the group' });
           }
-          res.json({ message: 'You have successfully joined the group' });
+
+          // Retrieve the updated group details with members
+          db.all(
+            `SELECT g.*, gm.userId AS memberId, gm.lastNotificationDate AS lastNotificationDate, u.username AS memberName, u.profileImage AS profileImage
+             FROM groups g
+             JOIN group_members gm ON g.id = gm.groupId
+             JOIN users u ON gm.userId = u.id
+             WHERE g.id = ?`,
+            [group.id],
+            (err, rows) => {
+              if (err) {
+                return res.status(500).json({ error: 'Error retrieving group details' });
+              }
+
+              const updatedGroup = {
+                id: group.id,
+                joinCode: group.joinCode,
+                name: group.name,
+                description: group.description,
+                ownerId: group.ownerId,
+                image: group.image || null,
+                members: rows.map(row => ({
+                  id: row.memberId,
+                  username: row.memberName,
+                  profileImage: row.profileImage || null,
+                  lastNotificationDate: row.lastNotificationDate,
+                })),
+              };
+
+              res.status(200).json(updatedGroup);
+            }
+          );
         }
       );
     });
   });
 });
+
 
 // Route to leave a group
 router.post('/:id/leave', authenticateToken, (req, res) => {
