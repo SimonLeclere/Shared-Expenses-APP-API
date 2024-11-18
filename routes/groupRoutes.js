@@ -95,43 +95,56 @@ router.post('/', authenticateToken, (req, res) => {
 router.get('/', authenticateToken, (req, res) => {
   const userId = req.user.userId;
 
-  db.all(`SELECT g.*, gm.userId AS memberId, gm.lastNotificationDate as lastNotificationDate, u.username AS memberName, u.profileImage as profileImage from groups g
+  // Récupérer tous les groupes auxquels l'utilisateur appartient
+  db.all(`SELECT g.id, g.joinCode, g.name, g.description, g.ownerId, g.image
+          FROM groups g
           JOIN group_members gm ON g.id = gm.groupId
-          JOIN users u ON gm.userId = u.id
-          WHERE gm.userId = ?`, [userId], (err, rows) => {
+          WHERE gm.userId = ?`, [userId], (err, groups) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ error: 'Error retrieving groups' });
     }
 
-    const groups = rows.reduce((acc, row) => {
-      const groupId = row.id;
+    if (groups.length === 0) {
+      return res.json([]);  // Si l'utilisateur ne fait partie d'aucun groupe
+    }
 
-      if (!acc[groupId]) {
-        acc[groupId] = {
-          id: groupId,
-          joinCode: row.joinCode,
-          name: row.name,
-          description: row.description,
-          ownerId: row.ownerId,
-          image: row.image || null,
-          members: []
-        };
+    // Récupérer les membres de chaque groupe
+    const groupIds = groups.map(group => group.id);
+    db.all(`SELECT gm.groupId, gm.userId AS memberId, gm.lastNotificationDate, u.username AS memberName, u.profileImage
+            FROM group_members gm
+            JOIN users u ON gm.userId = u.id
+            WHERE gm.groupId IN (${groupIds.join(',')})`, (err, members) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Error retrieving members' });
       }
 
-      acc[groupId].members.push({
-        id: row.memberId,
-        username: row.memberName,
-        profileImage: row.profileImage || null,
-        lastNotificationDate: row.lastNotificationDate
+      // Organiser les groupes et leurs membres
+      const groupsWithMembers = groups.map(group => {
+        const groupMembers = members.filter(member => member.groupId === group.id).map(member => ({
+          id: member.memberId,
+          username: member.memberName,
+          profileImage: member.profileImage || null,
+          lastNotificationDate: member.lastNotificationDate
+        }));
+
+        return {
+          id: group.id,
+          joinCode: group.joinCode,
+          name: group.name,
+          description: group.description,
+          ownerId: group.ownerId,
+          image: group.image || null,
+          members: groupMembers
+        };
       });
 
-      return acc;
-    }, {});
-
-    res.json(Object.values(groups));
+      res.json(groupsWithMembers);
+    });
   });
 });
+
 
 
 // Route to retrieve a specific group
