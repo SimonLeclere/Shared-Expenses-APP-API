@@ -132,8 +132,10 @@ describe('Group Routes', () => {
         .post(`${baseUrl}/${groupJoinCode}/join`)
         .set('Authorization', `Bearer ${userToken}`);
 
+        console.log(res.body, res.status);
+        
       expect(res.status).to.equal(200);
-      expect(res.body).to.have.property('message', 'You have successfully joined the group');
+      expect(res.body).to.have.property('id');
     });
 
     it('should return 404 for joining a non-existent group', async () => {

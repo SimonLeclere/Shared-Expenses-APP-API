@@ -1,13 +1,8 @@
 import express from 'express';
 import { db } from '../index.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
-
-import admin from 'firebase-admin';
-import serviceAccount from '../spleet-e232e-firebase-adminsdk-t38q4-f7c0de8d65.json' assert { type: 'json' };
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+import { createGroupMessage } from '../groupMessagesUtils.js';
+import { sendNotification } from '../notificationsUtils.js';
 
 const router = express.Router();
 
@@ -83,6 +78,8 @@ router.post('/', authenticateToken, (req, res) => {
                 }
               ]
             });
+
+            createGroupMessage('createGroup', ownerId, groupId, { groupName: name });
           }
         );
       }
@@ -213,9 +210,51 @@ router.put('/:id', authenticateToken, (req, res) => {
         if (err) {
           return res.status(400).json({ error: 'Group update error' });
         }
+
         res.json({ message: 'Group successfully updated' });
-      }
-    );
+        
+        // if the group name has been updated, create a group message
+        if (name) {
+          createGroupMessage('changeGroupName', userId, groupId, { newName: name });
+        }
+
+        // if the group description has been updated, create a group message
+        if (description) {
+          createGroupMessage('changeGroupDescription', userId, groupId);
+        }
+
+
+        //find all usernames and deviceTokens of the group members
+        db.all(`SELECT u.id, u.username, u.deviceToken FROM users u
+                JOIN group_members gm ON u.id = gm.userId
+                WHERE gm.groupId = ?`, [groupId], (err, members) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+
+          // send a notification to all group members
+          const payload = {
+            data: {
+              title: 'Group updated ✍🏻',
+              body: `${member.username} updated the group ${name}`,
+            },
+            tokens: members
+              .filter(member => member.id !== userId && member.deviceToken !== null)
+              .map(member => member.deviceToken)
+          };
+
+          sendNotification(payload)
+            .then(() => {
+              console.log('Notification sent successfully');
+            })
+            .catch(() => {
+              console.error('Error sending notification');
+            });
+        });
+
+
+      });
   });
 });
 
@@ -281,7 +320,7 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
 
           // Retrieve the updated group details with members
           db.all(
-            `SELECT g.*, gm.userId AS memberId, gm.lastNotificationDate AS lastNotificationDate, u.username AS memberName, u.profileImage AS profileImage
+            `SELECT g.*, gm.userId AS memberId, gm.lastNotificationDate AS lastNotificationDate, u.username AS memberName, u.profileImage AS profileImage, u.deviceToken AS deviceToken
              FROM groups g
              JOIN group_members gm ON g.id = gm.groupId
              JOIN users u ON gm.userId = u.id
@@ -308,6 +347,28 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
               };
 
               res.status(200).json(updatedGroup);
+              
+              createGroupMessage('joinGroup', userId, group.id);
+
+              // Send a notification to all group members
+              const payload = {
+                data: {
+                  title: 'New member! 🎉',
+                  body: `${req.user.username} joined the group ${group.name}`,
+                },
+                tokens: rows
+                  .filter(row => row.memberId !== userId && row.deviceToken !== null)
+                  .map(row => row.deviceToken)
+              };
+
+              sendNotification(payload)
+                .then(() => {
+                  console.log('Notification sent successfully');
+                })
+                .catch(() => {
+                  console.error('Error sending notification');
+                });
+              
             }
           );
         }
@@ -381,6 +442,36 @@ router.post('/:id/leave', authenticateToken, (req, res) => {
           } else {
             // If not the creator, the user simply leaves the group
             res.json({ message: 'You have successfully left the group' });
+
+            createGroupMessage('leaveGroup', userId, groupId);
+
+            // Send a notification to all group members
+            db.all(`SELECT u.id, u.username, u.deviceToken FROM users u
+                    JOIN group_members gm ON u.id = gm.userId
+                    WHERE gm.groupId = ?`, [groupId], (err, members) => {
+              if (err) {
+                console.error(err);
+                return;
+              }
+
+              const payload = {
+                data: {
+                  title: 'Member left 😢',
+                  body: `${member.username} left the group`,
+                },
+                tokens: members
+                  .filter(member => member.id !== userId && member.deviceToken !== null)
+                  .map(member => member.deviceToken)
+              };
+
+              sendNotification(payload)
+                .then(() => {
+                  console.log('Notification sent successfully');
+                })
+                .catch(() => {
+                  console.error('Error sending notification');
+                });
+            });
           }
         }
       );
@@ -388,40 +479,42 @@ router.post('/:id/leave', authenticateToken, (req, res) => {
   });
 });
 
-// test route
-router.post('/notify', (req, res) => {
 
-  const { token } = req.body;
+// TODO: test this route
+// route to get all groupMessages of a group
+router.get('/:groupId/messages', authenticateToken, (req, res) => {
+  const groupId = req.params.groupId;
+  const userId = req.user.userId;
 
-  if (!token) {
-    return res.status(400).json({ error: 'Device token is required' });
-  }
+  isUserInGroup(groupId, userId, (err, member) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error verifying group membership' });
+    }
+    if (!member) {
+      return res.status(403).json({ error: 'You must be a member of this group to view its messages' });
+    }
 
-  const message = `You owe 23.50€ to Florine and 2 others!`
+    db.all(`SELECT gm.id, gm.type, gm.authorId, gm.content, gm.date, u.username AS authorName, u.profileImage AS authorImage
+            FROM groupMessages gm
+            JOIN users u ON gm.authorId = u.id
+            WHERE gm.groupId = ?
+            ORDER BY gm.date DESC`, [groupId], (err, messages) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error retrieving group messages' });
+      }
 
-  const payload = {
-    data: {
-      title: "Don't forget ⏳",
-      body: message
-    },
-    token: token
-  };
-
-  admin.messaging().send(payload)
-    .then((response) => {
-      console.log('Successfully sent message:', response);
-      res.json({ message: 'Notification sent successfully' });
-    })
-    .catch((error) => {
-      console.log('Error sending message:', error);
-      res.status(500).json({ error: 'Error sending notification' });
+      res.json(messages);
     });
+  });
 });
 
-// Route to remind a user to pay a debt
+
+
+// TODO: use the notificationsUtils.js file to send notifications
+// // Route to remind a user to pay a debt
 router.post('/:groupId/reminder', authenticateToken, (req, res) => {
   // amountOwed is an array of objects { userId, amount }
-  const { userWhoOweId, amountsOwed } = req.body;
+  const { userWhoOweId, amountOwed } = req.body;
   const groupId = req.params.groupId;
 
   // check if the authenticated user is a member of the group
@@ -464,11 +557,11 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
 
         // if the user to remind owes multiple people, send a single notification with the text "You owe {totalAmount} to {maxCreditor} and {otherCreditorsCount} other{s?}!"
         // if the user to remind owes a single person, send a single notification with the text "You owe {totalAmount} to {creditor}!"
-        const totalAmount = amountsOwed.reduce((acc, amount) => acc + amount.amount, 0); // sum of all amounts owed
-        const creditorCount = amountsOwed.length; // number of people to whom the user owes money
+        const totalAmount = amountOwed.reduce((acc, amount) => acc + amount.amount, 0); // sum of all amounts owed
+        const creditorCount = amountOwed.length; // number of people to whom the user owes money
         
         // the user to remind owes the largest amount to this person
-        const creditor = amountsOwed.reduce((max, amount) => (amount.amount > max.amount) ? amount : max, amountsOwed[0]);
+        const creditor = amountOwed.reduce((max, amount) => (amount.amount > max.amount) ? amount : max, amountOwed[0]);
         const creditorName = creditor.username;
         
         const message = creditorCount > 1
@@ -483,7 +576,7 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
           token: member.deviceToken
         };
 
-        admin.messaging().send(payload)
+        sendNotification(payload)
           .then(() => {
             db.run(`UPDATE group_members SET lastNotificationDate = ? WHERE groupId = ? AND userId = ?`, [currentDate, groupId, userWhoOweId], (err) => {
               if (err) {
@@ -500,12 +593,6 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
   });
 });
 
-// Error Codes for the reminder route
-// 403: Not a member of the group
-// 404: User not found in this group
-// 400: Reminder sent too recently (24 hours limit)
-// 422: No device token registered
-// 500: Error sending reminder
-// 200: Reminder sent successfully
+// TODO: get route to retrieve all notifications of a group
 
 export default router;

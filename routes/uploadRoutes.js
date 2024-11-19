@@ -3,6 +3,9 @@ import fs from 'fs';
 import { db } from '../index.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
 
+import { createGroupMessage } from '../groupMessagesUtils.js';
+import { sendNotification } from '../notificationsUtils.js';
+
 const router = express.Router();
 
 const deleteFile = (filePath) => {
@@ -88,6 +91,38 @@ const setupUploadRoutes = (upload) => {
                     return res.status(400).json({ error: 'Error updating group image' });
                 }
                 res.json({ message: 'Group image successfully updated', imageUrl });
+
+
+                createGroupMessage('changeGroupImage', req.user.id, groupId);
+
+
+
+                // Send a notification to all group members
+                db.all(`SELECT u.deviceToken FROM users u JOIN group_members gm ON u.id = gm.userId WHERE gm.groupId = ?`, [groupId], (err, members) => {
+                    if (err || !members) {
+                        console.error(err);
+                        return;
+                    }
+
+                    const payload = {
+                        data: {
+                            title: 'Group image updated 🖼️',
+                            body: `${req.user.username} updated the group image`,
+                        },
+                        tokens: members
+                            .filter(member => member.id !== req.user.id && member.deviceToken !== null)
+                            .map(member => member.deviceToken)
+                    };
+
+                    sendNotification(payload)
+                        .then(() => {
+                            console.log('Notification sent successfully');
+                        })
+                        .catch(() => {
+                            console.error('Error sending notification');
+                        });
+                });
+
             });
         });
     });
@@ -115,6 +150,7 @@ const setupUploadRoutes = (upload) => {
                 if (err) {
                     return res.status(400).json({ error: 'Error updating expense image' });
                 }
+                
                 res.json({ message: 'Expense image successfully updated', imageUrl });
             });
         });

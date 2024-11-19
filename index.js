@@ -175,6 +175,19 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS groupMessages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      groupId INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      authorId INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      date TEXT NOT NULL,
+      FOREIGN KEY (groupId) REFERENCES groups(id),
+      FOREIGN KEY (authorId) REFERENCES users(id)
+    )
+  `);
+
   console.log('Tables created or existing tables checked');
 });
 

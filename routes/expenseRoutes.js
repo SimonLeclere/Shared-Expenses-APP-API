@@ -4,13 +4,15 @@ import { db } from '../index.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
 import checkUserInGroup from '../middlewares/checkUserInGroup.js';
 
+import { createGroupMessage } from '../groupMessagesUtils.js';
+
 const router = express.Router();
 
 // Route to add an expense to a group
 router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res) => {
     const groupId = req.params.groupId;
     const userId = req.user.userId;
-    const { amount, currency, label, type, splitType, date, users, splitValues } = req.body;
+    const { amount, currency, label, type, splitType, date, users, splitValues } = req.body;    
 
     // Add expense to database
     db.run(
@@ -18,7 +20,6 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
         [groupId, amount, currency, label, type, userId, splitType, date],
         function (err) {
             if (err) {
-                console.error(err);
                 return res.status(400).json({ error: 'Error adding expense' });
             }
 
@@ -67,6 +68,8 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
                                     date,
                                     image: null,
                                 });
+
+                                createGroupMessage("addExpense", userId, groupId, { expenseName: label });
                             }
                         );
                     })
@@ -88,6 +91,9 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
                     date,
                     image: null
                 });
+
+                createGroupMessage("addExpense", userId, groupId, { expenseName: label });
+
             }
         }
     );
@@ -290,12 +296,16 @@ router.put('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup,
                         Promise.all(insertSplitValues)
                             .then(() => {
                                 res.json({ message: 'Expense successfully updated' });
+
+                                createGroupMessage("editExpense", req.user.userId, groupId, { expenseName: label });
                             })
                             .catch(() => {
                                 res.status(400).json({ error: 'Error adding new distribution values' });
                             });
                     } else {
                         res.json({ message: 'Expense successfully updated, no modified distribution values' });
+
+                        createGroupMessage("editExpense", req.user.userId, groupId, { expenseName: label });
                     }
                 });
             }
@@ -311,21 +321,30 @@ router.delete('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGro
     const expenseId = req.params.expenseId;
     const groupId = req.params.groupId;
 
-    // Si l'utilisateur est membre, procédez à la suppression de la dépense
-    db.run(`DELETE FROM expenses WHERE id = ? AND groupId = ?`, [expenseId, groupId], function (err) {
-        if (err) {
-            return res.status(400).json({ error: 'Erreur lors de la suppression de la dépense' });
-        }
-        if (this.changes === 0) {
+    // commencer par récupérer la dépense
+    db.get(`SELECT * FROM expenses WHERE id = ? AND groupId = ?`, [expenseId, groupId], (err, expense) => {
+        if (err || !expense) {
             return res.status(404).json({ error: 'Expenses not found' });
         }
 
-        // Supprimer les valeurs de répartition associées
-        db.run(`DELETE FROM expense_split_values WHERE expenseId = ?`, [expenseId], (err) => {
+        // Si l'utilisateur est membre, procédez à la suppression de la dépense
+        db.run(`DELETE FROM expenses WHERE id = ? AND groupId = ?`, [expenseId, groupId], function (err) {
             if (err) {
-                return res.status(400).json({ error: 'Error when deleting distribution values' });
+                return res.status(400).json({ error: 'Erreur lors de la suppression de la dépense' });
             }
-            res.json({ message: 'Expense and its distribution values successfully deleted' });
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Expenses not found' });
+            }
+
+            // Supprimer les valeurs de répartition associées
+            db.run(`DELETE FROM expense_split_values WHERE expenseId = ?`, [expenseId], (err) => {
+                if (err) {
+                    return res.status(400).json({ error: 'Error when deleting distribution values' });
+                }
+                res.json({ message: 'Expense and its distribution values successfully deleted' });
+
+                createGroupMessage("deleteExpense", req.user.userId, groupId, { expenseName: expense.label });
+            });
         });
     });
 });
