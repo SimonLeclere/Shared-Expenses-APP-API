@@ -10,7 +10,7 @@ export async function sendNotification(payload) {
   return new Promise(async (resolve, reject) => {
     try {
       if (payload.tokens && payload.tokens.length > 0) {
-        await admin.messaging().sendMulticast(payload);
+        await admin.messaging().sendEachForMulticast(payload);
         resolve();
         return;
       }
