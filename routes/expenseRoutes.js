@@ -314,8 +314,6 @@ router.put('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup,
 });
 
 
-
-
 // Route pour supprimer une dépense
 router.delete('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup, (req, res) => {
     const expenseId = req.params.expenseId;

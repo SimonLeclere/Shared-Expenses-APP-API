@@ -112,6 +112,7 @@ const setupUploadRoutes = (upload) => {
                         tokens: members
                             .filter(member => member.id !== req.user.id && member.deviceToken !== null)
                             .map(member => member.deviceToken)
+                            .filter((value, index, self) => self.indexOf(value) === index),
                     };
 
                     sendNotification(payload)

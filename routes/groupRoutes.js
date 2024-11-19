@@ -242,6 +242,7 @@ router.put('/:id', authenticateToken, (req, res) => {
             tokens: members
               .filter(member => member.id !== userId && member.deviceToken !== null)
               .map(member => member.deviceToken)
+              .filter((token, index, self) => self.indexOf(token) === index)
           };
 
           sendNotification(payload)
@@ -367,6 +368,7 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
                   tokens: rows
                     .filter(row => row.memberId !== userId && row.deviceToken !== null)
                     .map(row => row.deviceToken)
+                    .filter((token, index, self) => self.indexOf(token) === index)
                 };
 
                 sendNotification(payload)
@@ -475,6 +477,7 @@ router.post('/:id/leave', authenticateToken, (req, res) => {
                   tokens: members
                     .filter(member => member.id !== userId && member.deviceToken !== null)
                     .map(member => member.deviceToken)
+                    .filter((token, index, self) => self.indexOf(token) === index)
                 };
 
                 sendNotification(payload)
