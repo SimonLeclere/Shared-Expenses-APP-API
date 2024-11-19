@@ -237,7 +237,7 @@ router.put('/:id', authenticateToken, (req, res) => {
           const payload = {
             data: {
               title: 'Group updated ✍🏻',
-              body: `${member.username} updated the group ${name}`,
+              body: `${members.find(member => member.id === userId)?.username} updated the group ${name}`,
             },
             tokens: members
               .filter(member => member.id !== userId && member.deviceToken !== null)
