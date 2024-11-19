@@ -212,7 +212,7 @@ router.put('/:id', authenticateToken, (req, res) => {
         }
 
         res.json({ message: 'Group successfully updated' });
-        
+
         // if the group name has been updated, create a group message
         if (name) {
           createGroupMessage('changeGroupName', userId, groupId, { newName: name });
@@ -260,35 +260,35 @@ router.put('/:id', authenticateToken, (req, res) => {
 
 // Route to delete a group
 router.delete('/:id', authenticateToken, (req, res) => {
-    const groupId = req.params.id;
-    const userId = req.user.userId;
-  
-    // Check if the group exists and retrieve the ownerId
-    db.get(`SELECT ownerId FROM groups WHERE id = ?`, [groupId], (err, group) => {
+  const groupId = req.params.id;
+  const userId = req.user.userId;
+
+  // Check if the group exists and retrieve the ownerId
+  db.get(`SELECT ownerId FROM groups WHERE id = ?`, [groupId], (err, group) => {
+    if (err) {
+      return res.status(500).json({ error: 'Erreur lors de la vérification du groupe' });
+    }
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    if (group.ownerId !== userId) {
+      return res.status(403).json({ error: 'You are not authorized to delete this group.' });
+    }
+
+    // If the user is the owner, delete the group
+    db.run(`DELETE FROM groups WHERE id = ?`, [groupId], function (err) {
       if (err) {
-        return res.status(500).json({ error: 'Erreur lors de la vérification du groupe' });
+        return res.status(400).json({ error: 'Group deletion error' });
       }
-      if (!group) {
+      if (this.changes === 0) {
         return res.status(404).json({ error: 'Group not found' });
       }
-  
-      if (group.ownerId !== userId) {
-        return res.status(403).json({ error: 'You are not authorized to delete this group.' });
-      }
-  
-      // If the user is the owner, delete the group
-      db.run(`DELETE FROM groups WHERE id = ?`, [groupId], function (err) {
-        if (err) {
-          return res.status(400).json({ error: 'Group deletion error' });
-        }
-        if (this.changes === 0) {
-          return res.status(404).json({ error: 'Group not found' });
-        }
-        res.json({ message: 'Group successfully deleted' });
-      });
+      res.json({ message: 'Group successfully deleted' });
     });
   });
-  
+});
+
 
 // Route to join a group
 router.post('/:joinCode/join', authenticateToken, (req, res) => {
@@ -347,32 +347,38 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
               };
 
               res.status(200).json(updatedGroup);
-              
+
               createGroupMessage('joinGroup', userId, group.id);
 
-              // Send a notification to all group members
-              const payload = {
-                data: {
-                  title: 'New member! 🎉',
-                  body: `${req.user.username} joined the group ${group.name}`,
-                },
-                tokens: rows
-                  .filter(row => row.memberId !== userId && row.deviceToken !== null)
-                  .map(row => row.deviceToken)
-              };
 
-              sendNotification(payload)
-                .then(() => {
-                  console.log('Notification sent successfully');
-                })
-                .catch(() => {
-                  console.error('Error sending notification');
-                });
-              
-            }
-          );
-        }
-      );
+              // find the username of the new member
+              db.get(`SELECT username FROM users WHERE id = ?`, [userId], (err, user) => {
+                if (err) {
+                  console.error(err);
+                  return;
+                }
+
+                // Send a notification to all group members
+                const payload = {
+                  data: {
+                    title: 'New member! 🎉',
+                    body: `${user.username} joined the group ${group.name}`,
+                  },
+                  tokens: rows
+                    .filter(row => row.memberId !== userId && row.deviceToken !== null)
+                    .map(row => row.deviceToken)
+                };
+
+                sendNotification(payload)
+                  .then(() => {
+                    console.log('Notification sent successfully');
+                  })
+                  .catch(() => {
+                    console.error('Error sending notification');
+                  });
+              });
+            });
+        });
     });
   });
 });
@@ -454,23 +460,31 @@ router.post('/:id/leave', authenticateToken, (req, res) => {
                 return;
               }
 
-              const payload = {
-                data: {
-                  title: 'Member left 😢',
-                  body: `${member.username} left the group`,
-                },
-                tokens: members
-                  .filter(member => member.id !== userId && member.deviceToken !== null)
-                  .map(member => member.deviceToken)
-              };
+              // get the username of the member who left
+              db.get(`SELECT username FROM users WHERE id = ?`, [userId], (err, member) => {
+                if (err) {
+                  console.error(err);
+                  return;
+                }
 
-              sendNotification(payload)
-                .then(() => {
-                  console.log('Notification sent successfully');
-                })
-                .catch(() => {
-                  console.error('Error sending notification');
-                });
+                const payload = {
+                  data: {
+                    title: 'Member left 😢',
+                    body: `${member.username} left the group`,
+                  },
+                  tokens: members
+                    .filter(member => member.id !== userId && member.deviceToken !== null)
+                    .map(member => member.deviceToken)
+                };
+
+                sendNotification(payload)
+                  .then(() => {
+                    console.log('Notification sent successfully');
+                  })
+                  .catch(() => {
+                    console.error('Error sending notification');
+                  });
+              });
             });
           }
         }
@@ -559,11 +573,11 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
         // if the user to remind owes a single person, send a single notification with the text "You owe {totalAmount} to {creditor}!"
         const totalAmount = amountOwed.reduce((acc, amount) => acc + amount.amount, 0); // sum of all amounts owed
         const creditorCount = amountOwed.length; // number of people to whom the user owes money
-        
+
         // the user to remind owes the largest amount to this person
         const creditor = amountOwed.reduce((max, amount) => (amount.amount > max.amount) ? amount : max, amountOwed[0]);
         const creditorName = creditor.username;
-        
+
         const message = creditorCount > 1
           ? `You owe ${totalAmount} to ${creditorName} and ${creditorCount - 1} other${creditorCount > 2 ? 's' : ''}!`
           : `You owe ${totalAmount} to ${creditorName}!`;
