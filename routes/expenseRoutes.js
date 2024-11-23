@@ -12,7 +12,7 @@ const router = express.Router();
 router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res) => {
     const groupId = req.params.groupId;
     const userId = req.user.userId;
-    const { amount, currency, label, type, splitType, date, users, splitValues } = req.body;    
+    const { amount, currency, label, type, splitType, date, users, splitValues } = req.body;
 
     // Add expense to database
     db.run(
@@ -77,27 +77,39 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
                         res.status(400).json({ error: 'Error when adding distribution values' });
                     });
             } else {
-                res.status(201).json({
-                    id: expenseId,
-                    groupId,
-                    amount,
-                    currency,
-                    label,
-                    type,
-                    payerId: userId,
-                    users: [],
-                    splitType,
-                    splitValues: null,
-                    date,
-                    image: null
-                });
+                // Retrieving user information
+                db.all(
+                    `SELECT id, username FROM users WHERE id IN (${users.map(() => '?').join(',')})`,
+                    users,
+                    (err, userDetails) => {
+                        if (err) {
+                            return res.status(500).json({ error: 'Error retrieving user information' });
+                        }
 
-                createGroupMessage("addExpense", userId, groupId, { expenseName: label });
+                        res.status(201).json({
+                            id: expenseId,
+                            groupId,
+                            amount,
+                            currency,
+                            label,
+                            type,
+                            payerId: userId,
+                            users: userDetails.map(user => ({ id: user.id, username: user.username })),
+                            splitType,
+                            splitValues: users.reduce((acc, curr) => {
+                                acc[curr] = amount / users.length;
+                                return acc;
+                            }, {}),
+                            date,
+                            image: null
+                        });
 
+                        createGroupMessage("addExpense", userId, groupId, { expenseName: label });
+                    })
             }
-        }
-    );
-});
+        })
+    }
+);
 
 
 // Route to retrieve a summary of a group's expenses
@@ -184,7 +196,7 @@ router.get('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup,
                     splitValues: splitValuesMap,
                     users: []
                 });
-            } 
+            }
 
             db.all(
                 `SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
@@ -210,7 +222,7 @@ router.get('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup,
 router.put('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup, (req, res) => {
     const expenseId = req.params.expenseId;
     const groupId = req.params.groupId;
-    
+
     const { amount, currency, label, type, splitType, date, image, users, splitValues } = req.body;
 
     // Verification of expense existence
