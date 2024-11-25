@@ -136,12 +136,17 @@ router.get('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res)
                         }, {});
 
                         // Retrieve associated users
+                        console.log(splitValues);
+                        
                         const userIds = splitValues.map(sv => sv.userId);
                         if (userIds.length === 0) {
                             resolve({ ...expense, splitValues: splitValuesMap, users: [] });
                         } else {
                             db.all(`SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds, (err, users) => {
                                 if (err) {
+                                    console.log("Error retrieving user information");
+                                    console.log(err);
+                                    
                                     resolve({ ...expense, splitValues: splitValuesMap, users: [] });
                                 } else {
                                     resolve({
