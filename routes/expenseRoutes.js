@@ -15,8 +15,7 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
     const { amount, currency, label, type, splitType, date, users, splitValues } = req.body;
 
     // Add expense to database
-    db.run(
-        `INSERT INTO expenses (groupId, amount, currency, label, type, payerId, splitType, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    db.run(`INSERT INTO expenses (groupId, amount, currency, label, type, payerId, splitType, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [groupId, amount, currency, label, type, userId, splitType, date],
         function (err) {
             if (err) {
@@ -45,8 +44,8 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
                 .then(() => {
                     // Retrieving user information
                     db.all(
-                        `SELECT id, username FROM users WHERE id IN (${users.map(() => '?').join(',')})`,
-                        users,
+                        `SELECT id, username FROM users WHERE id IN (?, ${users.map(() => '?').join(',')})`,
+                        [...users, userId],
                         (err, userDetails) => {
                             if (err) {
                                 return res.status(500).json({ error: 'Error retrieving user information' });
@@ -60,7 +59,10 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
                                 label,
                                 type,
                                 payerId: userId,
-                                users: userDetails.map(user => ({ id: user.id, username: user.username })),
+                                payerUsername: userDetails.find(user => user.id === userId).username,
+                                users: userDetails
+                                    .filter(user => userDetails.map(user => user.id).includes(user.id))
+                                    .map(user => ({ id: user.id, username: user.username })),
                                 splitType,
                                 splitValues,
                                 date,
@@ -106,14 +108,17 @@ router.get('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res)
                         if (userIds.length === 0) {
                             resolve({ ...expense, splitValues: splitValuesMap, users: [] });
                         } else {
-                            db.all(`SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds, (err, users) => {
+                            db.all(`SELECT id, username FROM users WHERE id IN (?, ${userIds.map(() => '?').join(',')})`, [...userIds, expense.payerId], (err, users) => {
                                 if (err) {
                                     resolve({ ...expense, splitValues: splitValuesMap, users: [] });
                                 } else {
                                     resolve({
                                         ...expense,
                                         splitValues: splitValuesMap,
-                                        users: users.map(user => ({ id: user.id, username: user.username }))
+                                        users: users
+                                            .filter(user => userIds.includes(user.id) || user.id === expense.payerId)
+                                            .map(user => ({ id: user.id, username: user.username })),
+                                        payerUsername: users.find(user => user.id === expense.payerId).username
                                     });
                                 }
                             });
@@ -165,8 +170,8 @@ router.get('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup,
             }
 
             db.all(
-                `SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
-                userIds,
+                `SELECT id, username FROM users WHERE id IN (?, ${userIds.map(() => '?').join(',')})`,
+                [...userIds, expense.payerId],
                 (err, users) => {
                     if (err) {
                         return res.status(500).json({ error: 'Error retrieving user information' });
@@ -175,7 +180,10 @@ router.get('/:groupId/expenses/:expenseId', authenticateToken, checkUserInGroup,
                     res.json({
                         ...expense,
                         splitValues: splitValuesMap,
-                        users: users.map(user => ({ id: user.id, username: user.username }))
+                        users: users
+                            .filter(user => userIds.includes(user.id) || user.id === expense.payerId)
+                            .map(user => ({ id: user.id, username: user.username })),
+                        payerUsername: users.find(user => user.id === expense.payerId).username
                     });
                 }
             );

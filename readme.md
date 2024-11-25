@@ -85,6 +85,7 @@
   "label": "string",
   "type": "string", // "expense", "transfer", "reimbursement", etc.
   "payerId": "unique_user_id",
+  "payerUsername": "username",
   "users": ["unique_user_id1", "unique_user_id2"],
   "splitType": "string", // "equitable", "shares", "amounts"
   "splitValues": { // If splitType is "shares" ou "amounts"
