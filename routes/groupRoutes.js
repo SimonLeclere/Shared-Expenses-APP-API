@@ -610,6 +610,39 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
   });
 });
 
-// TODO: get route to retrieve all notifications of a group
+
+// route pour notifier tous les utilisateurs avec une notif hardcodée
+router.post('/notify', authenticateToken, (req, res) => {
+
+  // get all users from the db
+  db.all(`SELECT id, deviceToken FROM users`, (err, users) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error retrieving users' });
+    }
+
+    // send a notification to all users
+    const payload = {
+      data: {
+        title: "Don't forget ⏳",
+        body: 'You owe 60€ to Simon!',
+      },
+      tokens: users
+        .filter(user => user.id !== req.user.userId && user.deviceToken !== null)
+        .map(user => user.deviceToken)
+        .filter((token, index, self) => self.indexOf(token) === index)
+    };
+
+    sendNotification(payload)
+      .then(() => {
+        res.json({ message: 'Notification sent successfully' });
+      })
+      .catch(() => {
+        return res.status(500).json({ error: 'Error sending notification' });
+      });
+  });
+});
+
+
+  // TODO: get route to retrieve all notifications of a group
 
 export default router;
