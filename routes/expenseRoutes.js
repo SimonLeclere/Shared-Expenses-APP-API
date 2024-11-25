@@ -25,90 +25,57 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
 
             const expenseId = this.lastID;
 
-            // Add distribution values if applicable
-            if (splitType === 'shares' || splitType === 'amounts') {
-                const insertSplitValues = users.map(user => {
-                    return new Promise((resolve, reject) => {
-                        db.run(
-                            `INSERT INTO expense_split_values (expenseId, userId, splitValue) VALUES (?, ?, ?)`,
-                            [expenseId, user, splitValues[user]],
-                            (err) => {
-                                if (err) {
-                                    return reject(err);
-                                }
-                                resolve();
+            const insertSplitValues = users.map(user => {
+                return new Promise((resolve, reject) => {
+                    db.run(
+                        `INSERT INTO expense_split_values (expenseId, userId, splitValue) VALUES (?, ?, ?)`,
+                        [expenseId, user, splitValues[user]],
+                        (err) => {
+                            if (err) {
+                                return reject(err);
                             }
-                        );
-                    });
-                });
-
-                // Execute all splitValue insertion promises
-                Promise.all(insertSplitValues)
-                    .then(() => {
-                        // Retrieving user information
-                        db.all(
-                            `SELECT id, username FROM users WHERE id IN (${users.map(() => '?').join(',')})`,
-                            users,
-                            (err, userDetails) => {
-                                if (err) {
-                                    return res.status(500).json({ error: 'Error retrieving user information' });
-                                }
-
-                                res.status(201).json({
-                                    id: expenseId,
-                                    groupId,
-                                    amount,
-                                    currency,
-                                    label,
-                                    type,
-                                    payerId: userId,
-                                    users: userDetails.map(user => ({ id: user.id, username: user.username })),
-                                    splitType,
-                                    splitValues,
-                                    date,
-                                    image: null,
-                                });
-
-                                createGroupMessage("addExpense", userId, groupId, { expenseName: label });
-                            }
-                        );
-                    })
-                    .catch(() => {
-                        res.status(400).json({ error: 'Error when adding distribution values' });
-                    });
-            } else {
-                // Retrieving user information
-                db.all(
-                    `SELECT id, username FROM users WHERE id IN (${users.map(() => '?').join(',')})`,
-                    users,
-                    (err, userDetails) => {
-                        if (err) {
-                            return res.status(500).json({ error: 'Error retrieving user information' });
+                            resolve();
                         }
+                    );
+                });
+            });
 
-                        res.status(201).json({
-                            id: expenseId,
-                            groupId,
-                            amount,
-                            currency,
-                            label,
-                            type,
-                            payerId: userId,
-                            users: userDetails.map(user => ({ id: user.id, username: user.username })),
-                            splitType,
-                            splitValues: users.reduce((acc, curr) => {
-                                acc[curr] = amount / users.length;
-                                return acc;
-                            }, {}),
-                            date,
-                            image: null
-                        });
+            // Execute all splitValue insertion promises
+            Promise.all(insertSplitValues)
+                .then(() => {
+                    // Retrieving user information
+                    db.all(
+                        `SELECT id, username FROM users WHERE id IN (${users.map(() => '?').join(',')})`,
+                        users,
+                        (err, userDetails) => {
+                            if (err) {
+                                return res.status(500).json({ error: 'Error retrieving user information' });
+                            }
 
-                        createGroupMessage("addExpense", userId, groupId, { expenseName: label });
-                    })
-            }
+                            res.status(201).json({
+                                id: expenseId,
+                                groupId,
+                                amount,
+                                currency,
+                                label,
+                                type,
+                                payerId: userId,
+                                users: userDetails.map(user => ({ id: user.id, username: user.username })),
+                                splitType,
+                                splitValues,
+                                date,
+                                image: null,
+                            });
+
+                            createGroupMessage("addExpense", userId, groupId, { expenseName: label });
+                        }
+                    );
+                })
+                .catch(() => {
+                    res.status(400).json({ error: 'Error when adding distribution values' });
+                });
         })
-    }
+}
 );
 
 
@@ -135,18 +102,12 @@ router.get('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res)
                             return acc;
                         }, {});
 
-                        // Retrieve associated users
-                        console.log(splitValues);
-                        
                         const userIds = splitValues.map(sv => sv.userId);
                         if (userIds.length === 0) {
                             resolve({ ...expense, splitValues: splitValuesMap, users: [] });
                         } else {
                             db.all(`SELECT id, username FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`, userIds, (err, users) => {
                                 if (err) {
-                                    console.log("Error retrieving user information");
-                                    console.log(err);
-                                    
                                     resolve({ ...expense, splitValues: splitValuesMap, users: [] });
                                 } else {
                                     resolve({
