@@ -611,16 +611,19 @@ router.post('/testnotifications', (req, res) => {
       return res.status(500).json({ error: 'Error retrieving users' });
     }
 
+    const tokens = users
+      .filter(user => user.deviceToken !== null)
+      .map(user => user.deviceToken)
+
+    console.log(tokens);
+
     // send a notification to all users
     const payload = {
       data: {
         title: "Don't forget ⏳",
         body: 'You owe 60€ to Simon!',
       },
-      tokens: users
-        .filter(user => user.deviceToken !== null)
-        .map(user => user.deviceToken)
-        .filter((token, index, self) => self.indexOf(token) === index)
+      tokens: tokens
     };
 
     sendNotification(payload)
