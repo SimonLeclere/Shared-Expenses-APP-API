@@ -119,9 +119,6 @@ const setupUploadRoutes = (upload) => {
                         .then(() => {
                             console.log('Notification sent successfully');
                         })
-                        .catch(() => {
-                            console.error('Error sending notification');
-                        });
                 });
 
             });

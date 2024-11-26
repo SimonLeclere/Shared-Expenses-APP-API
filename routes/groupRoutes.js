@@ -249,9 +249,6 @@ router.put('/:id', authenticateToken, (req, res) => {
             .then(() => {
               console.log('Notification sent successfully');
             })
-            .catch(() => {
-              console.error('Error sending notification');
-            });
         });
 
 
@@ -375,9 +372,6 @@ router.post('/:joinCode/join', authenticateToken, (req, res) => {
                   .then(() => {
                     console.log('Notification sent successfully');
                   })
-                  .catch(() => {
-                    console.error('Error sending notification');
-                  });
               });
             });
         });
@@ -484,9 +478,6 @@ router.post('/:id/leave', authenticateToken, (req, res) => {
                   .then(() => {
                     console.log('Notification sent successfully');
                   })
-                  .catch(() => {
-                    console.error('Error sending notification');
-                  });
               });
             });
           }
