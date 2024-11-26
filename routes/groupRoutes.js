@@ -615,8 +615,6 @@ router.post('/testnotifications', (req, res) => {
       .filter(user => user.deviceToken !== null)
       .map(user => user.deviceToken)
 
-    console.log(tokens);
-
     // send a notification to all users
     const payload = {
       data: {
