@@ -603,7 +603,7 @@ router.post('/:groupId/reminder', authenticateToken, (req, res) => {
 
 
 // route pour notifier tous les utilisateurs avec une notif hardcodée
-router.post('/notify', authenticateToken, (req, res) => {
+router.post('/testnotifications', (req, res) => {
 
   // get all users from the db
   db.all(`SELECT id, deviceToken FROM users`, (err, users) => {
@@ -618,7 +618,7 @@ router.post('/notify', authenticateToken, (req, res) => {
         body: 'You owe 60€ to Simon!',
       },
       tokens: users
-        .filter(user => user.id !== req.user.userId && user.deviceToken !== null)
+        .filter(user => user.deviceToken !== null)
         .map(user => user.deviceToken)
         .filter((token, index, self) => self.indexOf(token) === index)
     };
