@@ -627,9 +627,6 @@ router.post('/testnotifications', (req, res) => {
       .then(() => {
         res.json({ message: 'Notification sent successfully' });
       })
-      .catch(() => {
-        return res.status(500).json({ error: 'Error sending notification' });
-      });
   });
 });
 
