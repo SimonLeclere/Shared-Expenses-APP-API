@@ -70,6 +70,44 @@ router.post('/:groupId/expenses', authenticateToken, checkUserInGroup, (req, res
                             });
 
                             createGroupMessage("addExpense", userId, groupId, { expenseName: label });
+
+
+
+                            // Send a notification to all group members
+                            db.all(`SELECT u.id, u.username, u.deviceToken FROM users u
+                JOIN group_members gm ON u.id = gm.userId
+                WHERE gm.groupId = ?`, [groupId], (err, members) => {
+                                if (err) {
+                                    console.error(err);
+                                    return;
+                                }
+
+                                // get the username of the user who created the expense
+                                db.get(`SELECT username FROM users WHERE id = ?`, [userId], (err, member) => {
+                                    if (err) {
+                                        console.error(err);
+                                        return;
+                                    }
+
+                                    const payload = {
+                                        data: {
+                                            title: 'New expense 💸',
+                                            body: `${member.username} just added the expense ${label}`,
+                                        },
+                                        tokens: members
+                                            .filter(member => member.id !== userId && member.deviceToken !== null)
+                                            .map(member => member.deviceToken)
+                                    };
+
+                                    sendNotification(payload)
+                                        .then(() => {
+                                            console.log('Notification sent successfully');
+                                        })
+                                });
+                            });
+
+
+
                         }
                     );
                 })
