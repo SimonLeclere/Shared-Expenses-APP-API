@@ -5,6 +5,8 @@ import authenticateToken from '../middlewares/authenticateToken.js';
 import checkUserInGroup from '../middlewares/checkUserInGroup.js';
 
 import { createGroupMessage } from '../groupMessagesUtils.js';
+import { sendNotification } from '../notificationsUtils.js';
+
 
 const router = express.Router();
 
